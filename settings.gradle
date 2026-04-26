@@ -7,11 +7,17 @@ pluginManagement {
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
     repositories {
         google()
         mavenCentral()
-        // 必须添加此源以获取 LibXposed API
         maven { url 'https://api.xposed.info/' }
+    }
+
+    versionCatalogs {
+        libs {
+            from(files("gradle/libs.versions.toml"))
+        }
     }
 }
 rootProject.name = "MiPlayFix"
