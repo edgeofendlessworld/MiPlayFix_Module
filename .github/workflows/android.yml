@@ -4,6 +4,10 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+# 消除 Node.js 20 的弃用警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,11 +20,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-      
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
+    - name: Generate Wrapper and Build
+      # 核心修复：先在云端生成 gradlew，然后再执行编译，并输出详细错误日志（--stacktrace）
+      run: |
+        gradle wrapper --gradle-version 8.4
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
