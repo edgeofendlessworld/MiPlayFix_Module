@@ -21,5 +21,5 @@ android {
 
 dependencies {
     // 使用 API 100 版本的 LSPosed 依赖
-    compileOnly 'dev.lsposed.hook:api:100'
+    compileOnly 'dev.lsposed.hook:api:82'
 }
