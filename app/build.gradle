@@ -1,0 +1,25 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.example.miplayfix'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.miplayfix"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    // 使用 API 100 版本的 LSPosed 依赖
+    compileOnly 'dev.lsposed.hook:api:100'
+}
