@@ -5,11 +5,9 @@ import androidx.annotation.NonNull;
 import java.lang.reflect.Method;
 
 import io.github.libxposed.api.XposedModule;
-import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.XposedInterface.Hooker;
 import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
-import io.github.libxposed.api.XposedInterface.XC_MethodHook;
-import io.github.libxposed.api.XposedInterface.XC_MethodHook.MethodHookParam;
+import io.github.libxposed.api.XposedInterface.MethodHookParam;
 
 public class MainHook extends XposedModule {
 
@@ -18,7 +16,6 @@ public class MainHook extends XposedModule {
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
     private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
-    // ⚠️ API 101：构造函数无参数
     public MainHook() {
         super();
     }
@@ -41,17 +38,20 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
+            // API 101：Hooker + chain 模式
             hook(method, new Hooker() {
                 @Override
-                public Object intercept(XC_MethodHook.MethodHookParam param) throws Throwable {
+                public Object intercept(Chain chain) throws Throwable {
 
-                    Object[] args = param.args;
+                    MethodHookParam param = chain.getMethodHookParam();
 
-                    // 修改 delay
+                    Object[] args = param.getArgs();
+
+                    // 修改参数
                     args[1] = 50000;
 
-                    // 调用原方法
-                    return param.getResult();
+                    // 继续执行调用链（关键点）
+                    return chain.proceed(param.getThisObject(), args);
                 }
             });
 
