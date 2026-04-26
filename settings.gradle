@@ -1,10 +1,8 @@
-@file:Suppress("UnstableApiUsage")
-
 pluginManagement {
     repositories {
+        gradlePluginPortal()
         google()
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 dependencyResolutionManagement {
@@ -12,10 +10,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://jitpack.io") }
-        maven { url = uri("https://api.xposed.info/") }
+        // 必须添加此源以获取 LibXposed API
+        maven { url 'https://api.xposed.info/' }
     }
 }
-
 rootProject.name = "MiPlayFix"
-include(":app")
+include ':app'
