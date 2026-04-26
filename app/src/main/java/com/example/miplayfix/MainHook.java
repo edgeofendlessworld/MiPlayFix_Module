@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface.Hooker;
+import io.github.libxposed.api.XposedInterface.Chain;
 import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
 
 public class MainHook extends XposedModule {
@@ -38,20 +39,17 @@ public class MainHook extends XposedModule {
             );
 
             hook(method, new Hooker() {
-
                 @Override
-                public Object beforeHook(Object thisObject, Object[] args) throws Throwable {
+                public Object intercept(Chain chain) throws Throwable {
 
-                    // 修改参数
+                    // 参数
+                    Object[] args = chain.getArgs();
+
+                    // 修改 delay
                     args[1] = 50000;
 
-                    // 返回 null = 继续执行原方法
-                    return null;
-                }
-
-                @Override
-                public Object afterHook(Object thisObject, Object[] args, Object result) throws Throwable {
-                    return result;
+                    // 继续执行调用链（关键）
+                    return chain.proceed(chain.getThisObject(), args);
                 }
             });
 
