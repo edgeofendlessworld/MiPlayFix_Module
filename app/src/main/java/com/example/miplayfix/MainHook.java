@@ -7,7 +7,6 @@ import java.lang.reflect.Method;
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface.Hooker;
 import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
-import io.github.libxposed.api.XposedInterface.MethodHookParam;
 
 public class MainHook extends XposedModule {
 
@@ -25,7 +24,7 @@ public class MainHook extends XposedModule {
 
         if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
 
-        log("MiPlayFix: hooked -> " + TARGET_PACKAGE);
+        log("MiPlayFix hooked: " + TARGET_PACKAGE);
 
         try {
             ClassLoader cl = param.getClassLoader();
@@ -38,20 +37,21 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            // API 101：Hooker + chain 模式
             hook(method, new Hooker() {
+
                 @Override
-                public Object intercept(Chain chain) throws Throwable {
-
-                    MethodHookParam param = chain.getMethodHookParam();
-
-                    Object[] args = param.getArgs();
+                public Object beforeHook(Object thisObject, Object[] args) throws Throwable {
 
                     // 修改参数
                     args[1] = 50000;
 
-                    // 继续执行调用链（关键点）
-                    return chain.proceed(param.getThisObject(), args);
+                    // 返回 null = 继续执行原方法
+                    return null;
+                }
+
+                @Override
+                public Object afterHook(Object thisObject, Object[] args, Object result) throws Throwable {
+                    return result;
                 }
             });
 
