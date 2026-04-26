@@ -1,11 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application
-        android:label="MiPlay Audio Fix"
-        android:allowBackup="true"
-        android:supportsRtl="true">
-        
-        <meta-data
+<meta-data
             android:name="xposedmodule"
             android:value="true" />
         <meta-data
@@ -13,10 +6,7 @@
             android:value="强制降低小米互联通信服务（妙享/投屏）的音频同步延迟。" />
         <meta-data
             android:name="xposedminversion"
-            android:value="100" />
+            android:value="101" />
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposedscope" />
-            
-    </application>
-</manifest>
