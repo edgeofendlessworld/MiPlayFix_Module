@@ -10,6 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // 增加下面这一行官方下载源
+        maven { url 'https://api.xposed.info/' } 
     }
 }
 rootProject.name = "MiPlayFix"
