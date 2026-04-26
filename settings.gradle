@@ -5,20 +5,16 @@ pluginManagement {
         mavenCentral()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://api.xposed.info/' }
-    }
-
-    versionCatalogs {
-        libs {
-            from(files("app/gradle/libs.versions.toml"))
-        }
+        maven { url 'https://repo.xposed.info/repository/maven-releases/' }
     }
 }
+
 rootProject.name = "MiPlayFix"
 include ':app'
