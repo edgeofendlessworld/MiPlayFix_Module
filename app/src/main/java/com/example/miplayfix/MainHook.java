@@ -1,41 +1,28 @@
 package com.example.miplayfix;
 
-import android.util.Log;
-
 import java.lang.reflect.Method;
 import java.util.List;
 
-import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.XposedModule;
-import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam;
+import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
+import io.github.libxposed.api.Hooker;
 
 public class MainHook extends XposedModule {
 
-    private static final String TAG = "MiPlayFix";
-
-    private static final String TARGET_PACKAGE =
-            "com.milink.service";
-
+    private static final String TARGET_PACKAGE = "com.milink.service";
     private static final String TARGET_CLASS =
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
-
-    private static final String TARGET_METHOD =
-            "setAudioPlayDelayTime";
-
-    // ✅ 101 正确构造函数（修复你第1个错误）
-    public MainHook(XposedInterface base) {
-        super(base);
-    }
+    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
     @Override
     public void onPackageLoaded(PackageLoadedParam param) {
 
         if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
 
-        log("已注入: " + TARGET_PACKAGE);
-
         try {
-            ClassLoader cl = param.getClassLoader(); // ✔ 修复点2（前提：正确 param 类型）
+            log("MiPlayFix injected: " + TARGET_PACKAGE);
+
+            ClassLoader cl = param.classLoader; // ✅ 正确方式（不是 getClassLoader）
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -45,29 +32,30 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            hook(method)
-                    .intercept(chain -> {
+            param.hook(method, MyHooker.class);
 
-                        // ❗ 修复点3：getArgs() 返回的是 List<Object>
-                        List<Object> args = chain.getArgs();
+        } catch (Throwable t) {
+            log("hook failed: " + t);
+        }
+    }
 
-                        int original = (int) args.get(1);
+    public static class MyHooker implements Hooker {
 
-                        int newDelay = 50000;
+        @Override
+        public Object intercept(Chain<Object> chain) throws Throwable {
 
-                        args.set(1, newDelay);
+            List<Object> args = chain.getArgs();
 
-                        log("hook: " + original + " -> " + newDelay);
+            // 第二个参数 int delay
+            int original = (int) args.get(1);
 
-                        return chain.proceed(args);
-                    });
+            args.set(1, 50000); // 修改延迟
 
-        } catch (Throwable e) {
-            log("错误: " + e);
+            return chain.proceed(args);
         }
     }
 
     private void log(String msg) {
-        Log.i(TAG, msg);
+        android.util.Log.i("MiPlayFix", msg);
     }
 }
