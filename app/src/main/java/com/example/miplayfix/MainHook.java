@@ -1,11 +1,15 @@
 package com.example.miplayfix;
 
+import androidx.annotation.NonNull;
+
 import java.lang.reflect.Method;
-import java.util.List;
 
 import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedInterface.Hooker;
 import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
-import io.github.libxposed.api.Hooker;
+import io.github.libxposed.api.XposedInterface.XC_MethodHook;
+import io.github.libxposed.api.XposedInterface.XC_MethodHook.MethodHookParam;
 
 public class MainHook extends XposedModule {
 
@@ -14,15 +18,20 @@ public class MainHook extends XposedModule {
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
     private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
+    // ⚠️ API 101：构造函数无参数
+    public MainHook() {
+        super();
+    }
+
     @Override
-    public void onPackageLoaded(PackageLoadedParam param) {
+    public void onPackageLoaded(@NonNull PackageLoadedParam param) {
 
         if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
 
-        try {
-            log("MiPlayFix injected: " + TARGET_PACKAGE);
+        log("MiPlayFix: hooked -> " + TARGET_PACKAGE);
 
-            ClassLoader cl = param.classLoader; // ✅ 正确方式（不是 getClassLoader）
+        try {
+            ClassLoader cl = param.getClassLoader();
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -32,26 +41,22 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            param.hook(method, MyHooker.class);
+            hook(method, new Hooker() {
+                @Override
+                public Object intercept(XC_MethodHook.MethodHookParam param) throws Throwable {
 
-        } catch (Throwable t) {
-            log("hook failed: " + t);
-        }
-    }
+                    Object[] args = param.args;
 
-    public static class MyHooker implements Hooker {
+                    // 修改 delay
+                    args[1] = 50000;
 
-        @Override
-        public Object intercept(Chain<Object> chain) throws Throwable {
+                    // 调用原方法
+                    return param.getResult();
+                }
+            });
 
-            List<Object> args = chain.getArgs();
-
-            // 第二个参数 int delay
-            int original = (int) args.get(1);
-
-            args.set(1, 50000); // 修改延迟
-
-            return chain.proceed(args);
+        } catch (Throwable e) {
+            log("MiPlayFix error: " + e);
         }
     }
 
