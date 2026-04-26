@@ -1,35 +1,42 @@
 package com.example.miplayfix;
 
-import androidx.annotation.NonNull;
+import android.util.Log;
 
 import java.lang.reflect.Method;
 
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface;
-import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
-import io.github.libxposed.api.XposedInterface.Hooker;
-import io.github.libxposed.api.XposedInterface.BeforeHookCallback;
+import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam;
 
 public class MainHook extends XposedModule {
 
-    private static final String TARGET_PACKAGE = "com.milink.service";
+    private static final String TAG = "MiPlayFix";
+
+    private static final String TARGET_PACKAGE =
+            "com.milink.service";
+
     private static final String TARGET_CLASS =
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
-    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
-    public MainHook(@NonNull Object base) {
-        super(base);
+    private static final String TARGET_METHOD =
+            "setAudioPlayDelayTime";
+
+    public MainHook(XposedInterface base,
+                    XposedModuleInterface.ModuleLoadedParam param) {
+        super(base, param);
     }
 
     @Override
-    public void onPackageLoaded(@NonNull PackageLoadedParam param) {
+    public void onPackageLoaded(PackageLoadedParam param) {
 
-        if (!param.getPackageName().equals(TARGET_PACKAGE)) return;
+        if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
 
-        log("MiPlayFix: 成功注入目标应用 -> " + TARGET_PACKAGE);
+        log(Log.INFO, TAG, "已注入目标应用: " + TARGET_PACKAGE);
 
         try {
-            Class<?> clazz = param.getClassLoader().loadClass(TARGET_CLASS);
+            ClassLoader cl = param.getClassLoader();
+
+            Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
             Method method = clazz.getDeclaredMethod(
                     TARGET_METHOD,
@@ -37,29 +44,27 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            param.hook(method, MyHooker.class);
+            hook(method)
+                    .intercept(chain -> {
+
+                        Object[] args = chain.getArgs();
+
+                        // 原参数
+                        int originalDelay = (int) args[1];
+
+                        // 修改值
+                        int newDelay = 50000;
+
+                        args[1] = newDelay;
+
+                        log(Log.INFO, TAG,
+                                "Hook成功: " + originalDelay + " -> " + newDelay);
+
+                        return chain.proceed(args);
+                    });
 
         } catch (Throwable e) {
-            log("MiPlayFix: 注入失败 " + e);
+            log(Log.ERROR, TAG, "注入失败: " + e);
         }
-    }
-
-    public static class MyHooker implements Hooker {
-
-        public static void before(BeforeHookCallback callback) {
-
-            Object[] args = callback.getArgs();
-
-            // int -> 直接安全转换
-            int original = (int) args[1];
-
-            int newDelay = 50000;
-
-            args[1] = newDelay;
-        }
-    }
-
-    private void log(String msg) {
-        android.util.Log.i("MiPlayFix", msg);
     }
 }
