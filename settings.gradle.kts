@@ -13,7 +13,7 @@ dependencyResolutionManagement {
         mavenCentral()
         mavenLocal {
             content {
-                includeGroup("io.github.libxposed")
+                includeGroup("com.xposed")
             }
         }
     }
@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Xposed Example"
+rootProject.name = "miplayfix"
 
 include(":app")
