@@ -5,6 +5,8 @@ import java.lang.reflect.Method;
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
+import io.github.libxposed.api.XposedInterface.Hooker;
+import io.github.libxposed.api.XposedInterface.Chain;
 
 public class MainHook extends XposedModule {
 
@@ -19,7 +21,7 @@ public class MainHook extends XposedModule {
 
         if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
 
-        log("MiPlayFix injected -> " + TARGET_PACKAGE);
+        log(0, "MiPlayFix", "Injected -> " + TARGET_PACKAGE);
 
         try {
             ClassLoader cl = param.getClassLoader();
@@ -32,23 +34,25 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            hook(method, MyHooker.class);
+            hook(method, new MyHooker());
 
         } catch (Throwable t) {
-            log("hook failed: " + t);
+            log(1, "MiPlayFix", "hook failed", t);
         }
     }
 
-    public static class MyHooker implements XposedInterface.Hooker {
+    public static class MyHooker implements Hooker {
 
-        public static void before(XposedInterface.BeforeHookCallback callback) {
+        @Override
+        public Object intercept(Chain chain) throws Throwable {
 
-            Object[] args = callback.getArgs();
+            Object[] args = chain.getArgs();
 
             int original = (int) args[1];
 
             args[1] = 50000;
 
+            return chain.proceed(args);
         }
     }
 }
