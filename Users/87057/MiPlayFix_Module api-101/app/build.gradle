@@ -1,0 +1,5 @@
+dependencies {
+    // 删除旧版Xposed API依赖
+    // 添加LibXposed API 101依赖
+    compileOnly 'io.github.libxposed:interface:101'
+}

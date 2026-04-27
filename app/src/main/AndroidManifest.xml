@@ -13,7 +13,7 @@
             android:value="强制降低小米互联通信服务（妙享/投屏）的音频同步延迟。" />
         <meta-data
             android:name="xposedminversion"
-            android:value="101" />
+            android:value="100" />
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposedscope" />

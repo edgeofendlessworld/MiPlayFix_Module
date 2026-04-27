@@ -5,16 +5,14 @@ pluginManagement {
         mavenCentral()
     }
 }
-
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://repo.xposed.info/repository/maven-releases/' }
+        // 增加下面这一行官方下载源
+        maven { url 'https://api.xposed.info/' } 
     }
 }
-
 rootProject.name = "MiPlayFix"
 include ':app'
