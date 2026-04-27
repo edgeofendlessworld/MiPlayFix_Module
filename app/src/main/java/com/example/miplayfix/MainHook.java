@@ -1,49 +1,70 @@
-package com.example.miplayfix
+package com.example.miplayfix;
 
-import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface
-import de.robv.android.xposed.XposedHelpers
-import java.lang.reflect.Method
+import androidx.annotation.NonNull;
 
-class MainModule : XposedModule() {
+import java.lang.reflect.Method;
 
-    override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
+import io.github.libxposed.api.*;
+import io.github.libxposed.api.annotations.BeforeInvocation;
+import io.github.libxposed.api.annotations.XposedHooker;
 
-        val packageName = param.packageName
-        log("onPackageReady: $packageName")
+public class MainHook extends XposedModule {
 
-        if (!param.isFirstPackage) return
-        if (packageName != "com.milink.service") return
+    private static final String TARGET_PACKAGE = "com.milink.service";
+    private static final String TARGET_CLASS =
+            "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
+    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
+
+    public MainHook(@NonNull NativePlaceHolder base,
+                    @NonNull ModuleContext context) {
+        super(base, context);
+    }
+
+    @Override
+    public void onPackageLoaded(@NonNull PackageContext context) {
+
+        // 过滤目标包名
+        if (!context.getPackageName().equals(TARGET_PACKAGE)) return;
+
+        logI("MiPlayFix: 成功注入目标应用 -> " + TARGET_PACKAGE);
 
         try {
-            val cl = param.classLoader
 
-            val clazz = cl.loadClass(
-                "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl"
-            )
+            // 正确获取 ClassLoader
+            Class<?> targetClazz =
+                    context.getClassLoader().loadClass(TARGET_CLASS);
 
-            val method: Method = clazz.getDeclaredMethod(
-                "setAudioPlayDelayTime",
-                Long::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
-            )
+            Method targetMethod =
+                    targetClazz.getDeclaredMethod(
+                            TARGET_METHOD,
+                            long.class,
+                            int.class
+                    );
 
-            xposedModule.hook(method).intercept { chain ->
+            // 新版 hook API
+            context.hook(targetMethod, MyHooker.class);
 
-                val args = chain.args
+        } catch (Throwable e) {
 
-                val original = args[1] as Int
+            logE("MiPlayFix: 注入失败", e);
 
-                val newDelay = 50000
-                args[1] = newDelay
+        }
+    }
 
-                log("delay $original -> $newDelay")
+    @XposedHooker
+    public static class MyHooker {
 
-                chain.proceed()
-            }
+        @BeforeInvocation
+        public static void before(XposedInterface.BeforeHookCallback callback) {
 
-        } catch (t: Throwable) {
-            log("hook failed: $t")
+            Object[] args = callback.getArgs();
+
+            int originalDelay = (int) args[1];
+
+            int newDelay = 50000;
+
+            args[1] = newDelay;
+
         }
     }
 }
