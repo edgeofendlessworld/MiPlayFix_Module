@@ -2,10 +2,10 @@ package com.example.miplayfix;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.util.List;
 
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedInterface.Chain;
 
 public class MainHook extends XposedModule {
 
@@ -16,14 +16,16 @@ public class MainHook extends XposedModule {
             "setAudioPlayDelayTime";
 
     @Override
-    public void onPackageLoaded(XposedInterface.PackageLoadedParam param) {
+    public void onPackageLoaded(Object param) {
 
-        if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
+        // ⚠️ 这里不再依赖 PackageLoadedParam（你这个版本没有）
+        String pkg = getPackageName(param);
+        if (!TARGET_PACKAGE.equals(pkg)) return;
 
-        log(0, "MiPlayFix", "Injected -> " + TARGET_PACKAGE);
+        log(0, "MiPlayFix", "Injected -> " + pkg);
 
         try {
-            ClassLoader cl = param.getClass().getClassLoader();
+            ClassLoader cl = getClassLoader(param);
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -43,15 +45,37 @@ public class MainHook extends XposedModule {
     public static class HookImpl implements XposedInterface.Hooker {
 
         @Override
-        public Object intercept(XposedInterface.Chain chain) throws Throwable {
+        public Object intercept(Chain chain) throws Throwable {
 
-            List<Object> args = chain.getArgs();
+            Object[] args = (Object[]) chain.getArgs();
 
-            int original = (int) args.get(1);
+            int original = (int) args[1];
 
-            args.set(1, 50000);
+            args[1] = 50000;
 
             return chain.proceed(args);
+        }
+    }
+
+    // ===== 兼容层（关键） =====
+
+    private String getPackageName(Object param) {
+        try {
+            return (String) param.getClass()
+                    .getMethod("getPackageName")
+                    .invoke(param);
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    private ClassLoader getClassLoader(Object param) {
+        try {
+            return (ClassLoader) param.getClass()
+                    .getMethod("getClassLoader")
+                    .invoke(param);
+        } catch (Throwable t) {
+            return getClass().getClassLoader();
         }
     }
 }
