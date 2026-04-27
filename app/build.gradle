@@ -20,5 +20,5 @@ android {
 }
 
 dependencies {
- compileOnly "io.github.libxposed.api"
+    compileOnly "io.github.libxposed:api:101"
 }
