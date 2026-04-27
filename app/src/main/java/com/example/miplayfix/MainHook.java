@@ -2,27 +2,30 @@ package com.example.miplayfix;
 
 import java.lang.reflect.Method;
 
-import io.github.libxposed.api.XposedInterface;
 import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedModuleInterface;
+import io.github.libxposed.api.hooker.MethodHooker;
 
 public class MainHook extends XposedModule {
 
     private static final String TARGET_PACKAGE = "com.milink.service";
+
     private static final String TARGET_CLASS =
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
-    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
+
+    private static final String TARGET_METHOD =
+            "setAudioPlayDelayTime";
 
     @Override
-    public void onPackageLoaded(XposedInterface.PackageLoadedParam param) {
+    public void onPackageLoaded(XposedModuleInterface.PackageLoadedParam param) {
 
-        if (!TARGET_PACKAGE.equals(param.packageName))
+        if (!TARGET_PACKAGE.equals(param.getPackageName()))
             return;
 
-        log("MiPlayFix injected");
+        log(INFO, "MiPlayFix", "injected");
 
         try {
-
-            ClassLoader cl = param.classLoader;
+            ClassLoader cl = param.getClassLoader();
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -32,11 +35,20 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            method.setAccessible(true);
+            hook(method, DelayHooker.class);
 
-            hook(method, callback -> {
+        } catch (Throwable e) {
+            log(ERROR, "MiPlayFix", "hook failed", e);
+        }
+    }
 
-                Object[] args = callback.args;
+    public static class DelayHooker implements MethodHooker {
+
+        @Override
+        public void before(MethodHookParam param) {
+
+            try {
+                Object[] args = param.args;
 
                 int original = (int) args[1];
 
@@ -44,14 +56,12 @@ public class MainHook extends XposedModule {
 
                 args[1] = newDelay;
 
-                log("delay " + original + " -> " + newDelay);
+                log(INFO, "MiPlayFix",
+                        "delay " + original + " -> " + newDelay);
 
-            });
-
-        } catch (Throwable e) {
-
-            log("MiPlayFix hook failed: " + e);
-
+            } catch (Throwable e) {
+                log(ERROR, "MiPlayFix", "before hook error", e);
+            }
         }
     }
 }
