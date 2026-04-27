@@ -56,7 +56,29 @@ public class MainHook extends XposedModule {
         }
     }
 
-    private void log(String msg) {
-        android.util.Log.i("MiPlayFix", msg);
+    @XposedHooker
+    public static class MyHooker {
+
+        @BeforeInvocation
+        public static void before(
+                XposedInterface.BeforeHookCallback callback
+        ) {
+
+            try {
+
+                Object[] args = callback.getArgs();
+
+                int originalDelay = (int) args[1];
+
+                int newDelay = 50000;
+
+                args[1] = newDelay;
+
+            } catch (Throwable t) {
+
+                callback.getLogger().e("MiPlayFix: 修改参数失败", t);
+
+            }
+        }
     }
 }
