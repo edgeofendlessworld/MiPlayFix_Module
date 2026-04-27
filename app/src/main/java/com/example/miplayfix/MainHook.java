@@ -1,14 +1,9 @@
 package com.example.miplayfix;
 
-import androidx.annotation.NonNull;
-
 import java.lang.reflect.Method;
 
-import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedInterface;
-import io.github.libxposed.api.XposedModuleInterface;
-import io.github.libxposed.api.annotations.BeforeInvocation;
-import io.github.libxposed.api.annotations.XposedHooker;
+import io.github.libxposed.api.XposedModule;
 
 public class MainHook extends XposedModule {
 
@@ -17,22 +12,17 @@ public class MainHook extends XposedModule {
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
     private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
-    public MainHook(@NonNull XposedInterface base) {
-        super(base);
-    }
-
     @Override
-    public void onPackageLoaded(
-            @NonNull XposedModuleInterface.PackageLoadedParam param) {
+    public void onPackageLoaded(XposedInterface.PackageLoadedParam param) {
 
-        if (!TARGET_PACKAGE.equals(param.getPackageName()))
+        if (!TARGET_PACKAGE.equals(param.packageName))
             return;
 
-        log("MiPlayFix: injected -> " + TARGET_PACKAGE);
+        log("MiPlayFix injected");
 
         try {
 
-            ClassLoader cl = param.getClassLoader();
+            ClassLoader cl = param.classLoader;
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -44,30 +34,23 @@ public class MainHook extends XposedModule {
 
             method.setAccessible(true);
 
-            base.hook(method, MyHooker.class);
+            hook(method, callback -> {
+
+                Object[] args = callback.args;
+
+                int original = (int) args[1];
+
+                int newDelay = 50000;
+
+                args[1] = newDelay;
+
+                log("delay " + original + " -> " + newDelay);
+
+            });
 
         } catch (Throwable e) {
 
             log("MiPlayFix hook failed: " + e);
-
-        }
-    }
-
-    @XposedHooker
-    public static class MyHooker {
-
-        @BeforeInvocation
-        public static void before(
-                XposedInterface.BeforeHookCallback callback
-        ) {
-
-            Object[] args = callback.getArgs();
-
-            int original = (int) args[1];
-
-            int newDelay = 50000;
-
-            args[1] = newDelay;
 
         }
     }
