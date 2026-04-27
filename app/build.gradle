@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.example.miplayfix'
+    namespace 'com.xposed.miplayfix'
     compileSdk 34
 
     defaultConfig {
