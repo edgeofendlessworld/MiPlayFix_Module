@@ -1,10 +1,10 @@
-name: Build Xposed Module
+name: Android CI
 
 on:
   push:
-    branches: [ "api-101" ]
+    branches: [ "api-100" ]
   pull_request:
-    branches: [ "api-101" ]
+    branches: [ "api-100" ]
   workflow_dispatch:   
 
 jobs:
