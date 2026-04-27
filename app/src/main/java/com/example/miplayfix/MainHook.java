@@ -1,11 +1,8 @@
 package com.example.miplayfix;
 
-import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 
 import io.github.libxposed.api.XposedModule;
-import io.github.libxposed.api.XposedInterface;
-import io.github.libxposed.api.XposedInterface.Chain;
 
 public class MainHook extends XposedModule {
 
@@ -16,9 +13,8 @@ public class MainHook extends XposedModule {
             "setAudioPlayDelayTime";
 
     @Override
-    public void onPackageLoaded(Object param) {
+    public void onLoadedPackage(Object param) {
 
-        // ⚠️ 这里不再依赖 PackageLoadedParam（你这个版本没有）
         String pkg = getPackageName(param);
         if (!TARGET_PACKAGE.equals(pkg)) return;
 
@@ -35,29 +31,22 @@ public class MainHook extends XposedModule {
                     int.class
             );
 
-            hook((Executable) method, new HookImpl());
+            hook(method);
 
         } catch (Throwable t) {
             log(1, "MiPlayFix", "hook failed", t);
         }
     }
 
-    public static class HookImpl implements XposedInterface.Hooker {
+    @Override
+    public void handleHook(Object[] args) {
 
-        @Override
-        public Object intercept(Chain chain) throws Throwable {
+        int original = (int) args[1];
 
-            Object[] args = (Object[]) chain.getArgs();
-
-            int original = (int) args[1];
-
-            args[1] = 50000;
-
-            return chain.proceed(args);
-        }
+        args[1] = 50000;
     }
 
-    // ===== 兼容层（关键） =====
+    // ===== 兼容 =====
 
     private String getPackageName(Object param) {
         try {
