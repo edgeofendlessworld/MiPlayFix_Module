@@ -56,4 +56,26 @@ public class MainHook extends XposedModule {
             return chain.proceed(args);
         }
     }
+
+    // ===== 兼容层（关键） =====
+
+    private String getPackageName(Object param) {
+        try {
+            return (String) param.getClass()
+                    .getMethod("getPackageName")
+                    .invoke(param);
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    private ClassLoader getClassLoader(Object param) {
+        try {
+            return (ClassLoader) param.getClass()
+                    .getMethod("getClassLoader")
+                    .invoke(param);
+        } catch (Throwable t) {
+            return getClass().getClassLoader();
+        }
+    }
 }
