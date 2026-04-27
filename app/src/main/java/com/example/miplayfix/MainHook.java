@@ -12,16 +12,13 @@ public class MainHook extends XposedModule {
     private static final String TARGET_METHOD =
             "setAudioPlayDelayTime";
 
-    @Override
-    public void onLoadedPackage(Object param) {
+    // ❌ 不要 @Override（你这个版本没有这个方法）
 
-        String pkg = getPackageName(param);
-        if (!TARGET_PACKAGE.equals(pkg)) return;
-
-        log(0, "MiPlayFix", "Injected -> " + pkg);
+    public void start() {
 
         try {
-            ClassLoader cl = getClassLoader(param);
+
+            ClassLoader cl = getClass().getClassLoader();
 
             Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
@@ -34,37 +31,14 @@ public class MainHook extends XposedModule {
             hook(method);
 
         } catch (Throwable t) {
-            log(1, "MiPlayFix", "hook failed", t);
+            log(1, "MiPlayFix", "init failed", t);
         }
     }
 
-    @Override
-    public void handleHook(Object[] args) {
-
-        int original = (int) args[1];
+    // hook 实际执行点（你这个版本唯一稳定入口）
+    public Object handleHook(Object[] args) {
 
         args[1] = 50000;
-    }
-
-    // ===== 兼容 =====
-
-    private String getPackageName(Object param) {
-        try {
-            return (String) param.getClass()
-                    .getMethod("getPackageName")
-                    .invoke(param);
-        } catch (Throwable t) {
-            return "";
-        }
-    }
-
-    private ClassLoader getClassLoader(Object param) {
-        try {
-            return (ClassLoader) param.getClass()
-                    .getMethod("getClassLoader")
-                    .invoke(param);
-        } catch (Throwable t) {
-            return getClass().getClassLoader();
-        }
+        return null;
     }
 }
