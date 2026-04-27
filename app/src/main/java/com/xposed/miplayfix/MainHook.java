@@ -1,4 +1,4 @@
-package com.example.miplayfix;
+package com.xposed.miplayfix;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
