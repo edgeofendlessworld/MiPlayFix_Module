@@ -1,49 +1,54 @@
-package com.example.miplayfix
+package com.example.miplayfix;
 
-import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface
-import de.robv.android.xposed.XposedHelpers
-import java.lang.reflect.Method
+import java.lang.reflect.Method;
 
-class MainModule : XposedModule() {
+import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
 
-    override fun onPackageReady(param: XposedModuleInterface.PackageReadyParam) {
+public class MainHook extends XposedModule {
 
-        val packageName = param.packageName
-        log("onPackageReady: $packageName")
+    private static final String TARGET_PACKAGE = "com.milink.service";
+    private static final String TARGET_CLASS =
+            "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
+    private static final String TARGET_METHOD =
+            "setAudioPlayDelayTime";
 
-        if (!param.isFirstPackage) return
-        if (packageName != "com.milink.service") return
+    @Override
+    public void onPackageLoaded(PackageLoadedParam param) {
+
+        if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
+
+        log("MiPlayFix injected -> " + TARGET_PACKAGE);
 
         try {
-            val cl = param.classLoader
+            ClassLoader cl = param.getClassLoader();
 
-            val clazz = cl.loadClass(
-                "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl"
-            )
+            Class<?> clazz = cl.loadClass(TARGET_CLASS);
 
-            val method: Method = clazz.getDeclaredMethod(
-                "setAudioPlayDelayTime",
-                Long::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
-            )
+            Method method = clazz.getDeclaredMethod(
+                    TARGET_METHOD,
+                    long.class,
+                    int.class
+            );
 
-            xposedModule.hook(method).intercept { chain ->
+            hook(method, MyHooker.class);
 
-                val args = chain.args
+        } catch (Throwable t) {
+            log("hook failed: " + t);
+        }
+    }
 
-                val original = args[1] as Int
+    public static class MyHooker implements XposedInterface.Hooker {
 
-                val newDelay = 50000
-                args[1] = newDelay
+        public static void before(XposedInterface.BeforeHookCallback callback) {
 
-                log("delay $original -> $newDelay")
+            Object[] args = callback.getArgs();
 
-                chain.proceed()
-            }
+            int original = (int) args[1];
 
-        } catch (t: Throwable) {
-            log("hook failed: $t")
+            args[1] = 50000;
+
         }
     }
 }
