@@ -1,4 +1,4 @@
-package com.example.miplayfix;
+package com.xposed.miplayfix;
 
 import java.lang.reflect.Method;
 
