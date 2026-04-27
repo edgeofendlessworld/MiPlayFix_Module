@@ -30,8 +30,7 @@ public class MainHook implements IXposedHookLoadPackage {
                     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                         int originalDelay = (int) param.args[1];
                         
-                        // 将延迟修改为 20000 (20ms)
-                        int newDelay = 50000; 
+                        int newDelay = 50000; //延迟时间，单位为微秒，默认为50ms
                         param.args[1] = newDelay;
                         
                         XposedBridge.log("MiPlayFix: 音频延迟已修改 [ " + originalDelay + " -> " + newDelay + " ]");
