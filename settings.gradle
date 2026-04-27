@@ -7,11 +7,17 @@ pluginManagement {
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
     repositories {
         google()
         mavenCentral()
-        // 增加下面这一行官方下载源
-        maven { url 'https://api.xposed.info/' } 
+        maven { url 'https://api.xposed.info/' }
+    }
+
+    versionCatalogs {
+        libs {
+            from(files("app/gradle/libs.versions.toml"))
+        }
     }
 }
 rootProject.name = "MiPlayFix"

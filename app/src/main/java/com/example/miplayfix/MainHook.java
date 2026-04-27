@@ -4,12 +4,9 @@ import androidx.annotation.NonNull;
 
 import java.lang.reflect.Method;
 
-import io.github.libxposed.api.XposedModule;
-import io.github.libxposed.api.XposedInterface;
-import io.github.libxposed.api.XposedInterface.Hooker;
-import io.github.libxposed.api.XposedInterface.PackageLoadedParam;
-import io.github.libxposed.api.XposedInterface.XC_MethodHook;
-import io.github.libxposed.api.XposedInterface.XC_MethodHook.MethodHookParam;
+import io.github.libxposed.api.*;
+import io.github.libxposed.api.annotations.BeforeInvocation;
+import io.github.libxposed.api.annotations.XposedHooker;
 
 public class MainHook extends XposedModule {
 
@@ -18,49 +15,70 @@ public class MainHook extends XposedModule {
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
     private static final String TARGET_METHOD = "setAudioPlayDelayTime";
 
-    // ⚠️ API 101：构造函数无参数
-    public MainHook() {
-        super();
+    public MainHook(@NonNull NativePlaceHolder base,
+                    @NonNull ModuleContext context) {
+        super(base, context);
     }
 
     @Override
-    public void onPackageLoaded(@NonNull PackageLoadedParam param) {
+    public void onPackageReady(@NonNull PackageContext context) {
 
-        if (!TARGET_PACKAGE.equals(param.getPackageName())) return;
+        // 过滤目标包名
+        if (!context.getPackageName().equals(TARGET_PACKAGE)) return;
 
-        log("MiPlayFix: hooked -> " + TARGET_PACKAGE);
+        logI("MiPlayFix: 成功注入目标应用 -> " + TARGET_PACKAGE);
 
         try {
-            ClassLoader cl = param.getClassLoader();
 
-            Class<?> clazz = cl.loadClass(TARGET_CLASS);
+            ClassLoader cl = context.getClassLoader();
 
-            Method method = clazz.getDeclaredMethod(
-                    TARGET_METHOD,
-                    long.class,
-                    int.class
-            );
+            Class<?> targetClazz =
+                    cl.loadClass(TARGET_CLASS);
 
-            hook(method, new Hooker() {
-                @Override
-                public Object intercept(XC_MethodHook.MethodHookParam param) throws Throwable {
+            Method targetMethod =
+                    targetClazz.getDeclaredMethod(
+                            TARGET_METHOD,
+                            long.class,
+                            int.class
+                    );
 
-                    Object[] args = param.args;
+            targetMethod.setAccessible(true);
 
-                    // 修改 delay
-                    args[1] = 50000;
+            // 使用标准 hook API
+            xposed.hook(targetMethod, MyHooker.class);
 
-                    // 调用原方法
-                    return param.getResult();
-                }
-            });
+            logI("MiPlayFix: hook 成功");
 
         } catch (Throwable e) {
-            log("MiPlayFix error: " + e);
+
+            logE("MiPlayFix: 注入失败", e);
+
         }
     }
 
-    private void log(String msg) {
-        android.util.Log.i("MiPlayFix", msg);
+    @XposedHooker
+    public static class MyHooker {
+
+        @BeforeInvocation
+        public static void before(
+                XposedInterface.BeforeHookCallback callback
+        ) {
+
+            try {
+
+                Object[] args = callback.getArgs();
+
+                int originalDelay = (int) args[1];
+
+                int newDelay = 50000;
+
+                args[1] = newDelay;
+
+            } catch (Throwable t) {
+
+                callback.getLogger().e("MiPlayFix: 修改参数失败", t);
+
+            }
+        }
     }
 }

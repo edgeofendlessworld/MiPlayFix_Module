@@ -4,11 +4,11 @@ plugins {
 
 android {
     namespace 'com.example.miplayfix'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.example.miplayfix"
-        minSdk 24
+        minSdk 26
         targetSdk 34
         versionCode 1
         versionName "1.0"
@@ -20,6 +20,7 @@ android {
 }
 
 dependencies {
-    // 官方标准 API，绝对不会报错！
-    compileOnly 'de.robv.android.xposed:api:82'
+    compileOnly(libs.libxposed.api)
+    implementation(libs.libxposed.service)
+    compileOnly "androidx.annotation:annotation:1.7.1"
 }

@@ -1,0 +1,4 @@
+name=MiPlay Audio Fix
+description=强制降低小米互联通信服务的音频同步延迟。
+minApiVersion=101
+targetApiVersion=101
