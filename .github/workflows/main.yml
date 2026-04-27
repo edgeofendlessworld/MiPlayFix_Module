@@ -5,7 +5,7 @@ on:
     branches: [ "api-101" ]
   pull_request:
     branches: [ "api-101" ]
-  workflow_dispatch:   # 👈 手动触发
+  workflow_dispatch:   
 
 jobs:
   build:

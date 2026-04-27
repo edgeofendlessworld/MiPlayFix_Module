@@ -12,7 +12,6 @@ public class MainHook extends XposedModule {
     private static final String TARGET_METHOD =
             "setAudioPlayDelayTime";
 
-    // ❌ 不要 @Override（你这个版本没有这个方法）
 
     public void start() {
 
@@ -35,10 +34,10 @@ public class MainHook extends XposedModule {
         }
     }
 
-    // hook 实际执行点（你这个版本唯一稳定入口）
+    // hook 实际执行点（版本唯一稳定入口）
     public Object handleHook(Object[] args) {
 
-        args[1] = 50000;
+        args[1] = 50000; //延迟时间，单位为微秒，默认为50ms
         return null;
     }
 }
