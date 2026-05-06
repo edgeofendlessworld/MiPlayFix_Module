@@ -1,29 +1,30 @@
 package com.xposed.miplayfix;
 
-import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
+import android.content.Context;
 
 import java.io.InputStream;
 
-public class MainHook implements IXposedHookLoadPackage {
+import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedModuleInterface;
+import io.github.libxposed.api.annotations.XposedModule;
+import io.github.libxposed.api.XposedHelpers;
+import io.github.libxposed.api.XposedBridge;
+import io.github.libxposed.api.callbacks.MethodHook;
+
+@XposedModule(
+        packageName = "com.xposed.miplayfix",
+        description = "MiPlayFix (libxposed100)"
+)
+public class MainHook implements XposedModuleInterface {
 
     private static final String TARGET_PACKAGE = "com.milink.service";
 
-    // =========================
-    // ✔ 原功能：延迟控制
-    // =========================
     private static final String CONTROL_CLASS =
             "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
 
     private static final String CONTROL_METHOD =
             "setAudioPlayDelayTime";
 
-    // =========================
-    // ✔ 新增：音频发送控制
-    // =========================
     private static final String CAPTURE_CLASS =
             "com.xiaomi.miplay.mylibrary.mirror.CaptureService";
 
@@ -31,148 +32,139 @@ public class MainHook implements IXposedHookLoadPackage {
             "sendLocalAudio";
 
     @Override
-    public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
+    public void onPackageLoaded(XposedInterface xposed, LoadPackageParam lpparam) throws Throwable {
 
-        if (!lpparam.packageName.equals(TARGET_PACKAGE)) return;
+        if (!lpparam.getPackageName().equals(TARGET_PACKAGE)) return;
 
-        XposedBridge.log("MiPlayFix: 已注入 -> " + TARGET_PACKAGE);
+        XposedBridge.log("MiPlayFix(libxposed100): injected -> " + TARGET_PACKAGE);
 
-        // =====================================================
-        // ✔ ① 原逻辑：delay time hook（完全不动）
-        // =====================================================
+        ClassLoader cl = lpparam.getClassLoader();
+
+        // =========================
+        // ① delay hook
+        // =========================
         try {
-            XposedHelpers.findAndHookMethod(
+            var method = XposedHelpers.findMethodExact(
                     CONTROL_CLASS,
-                    lpparam.classLoader,
+                    cl,
                     CONTROL_METHOD,
                     long.class,
-                    int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-
-                            int originalDelay = (int) param.args[1];
-
-                            int newDelay = 50000; // 50ms（微秒）
-
-                            param.args[1] = newDelay;
-
-                            XposedBridge.log(
-                                    "MiPlayFix: delay修改 " +
-                                    originalDelay + " -> " + newDelay
-                            );
-                        }
-                    }
+                    int.class
             );
+
+            XposedBridge.hookMethod(method, new MethodHook() {
+                @Override
+                public void beforeCall(MethodHookParam param) throws Throwable {
+
+                    int originalDelay = (int) param.getArgs()[1];
+
+                    int newDelay = 50000; // 50ms
+
+                    param.getArgs()[1] = newDelay;
+
+                    XposedBridge.log(
+                            "MiPlayFix: delay " + originalDelay + " -> " + newDelay
+                    );
+                }
+            });
+
         } catch (Throwable e) {
-            XposedBridge.log("MiPlayFix: delay hook失败 -> " + e);
+            XposedBridge.log("delay hook failed -> " + e);
         }
 
-        // =====================================================
-        // ✔ ② 新增：sendLocalAudio（只改 2000）
-        // =====================================================
+        // =========================
+        // ② sendLocalAudio hook
+        // =========================
         try {
-            XposedHelpers.findAndHookMethod(
+            var method = XposedHelpers.findMethodExact(
                     CAPTURE_CLASS,
-                    lpparam.classLoader,
+                    cl,
                     CAPTURE_METHOD,
-                    "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl",
-                    String.class,
-                    new XC_MethodHook() {
-
-                        @Override
-                        protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-
-                            Object thisObj = param.thisObject;
-                            Object multiMirrorControl = param.args[0];
-                            String fileName = (String) param.args[1];
-
-                            // =========================
-                            // ✔ 唯一可调变量（替换 2000）
-                            // =========================
-                            long threshold = 50;
-
-                            android.content.Context context =
-                                    (android.content.Context)
-                                            XposedHelpers.getObjectField(thisObj, "mContext");
-
-                            InputStream open =
-                                    context.getAssets().open(fileName);
-
-                            byte[] buffer = new byte[20480];
-
-                            long playSysTime = System.currentTimeMillis();
-                            long pts = 0;
-
-                            while (true) {
-
-                                boolean exit =
-                                        (boolean) XposedHelpers.getObjectField(
-                                                thisObj,
-                                                "mUseLocalAudioExit"
-                                        );
-
-                                if (exit) break;
-
-                                if (open.read(buffer, 0, 7) != 7) break;
-
-                                int frameSize = (int) XposedHelpers.callMethod(
-                                        thisObj,
-                                        "parseADTSHeader",
-                                        buffer,
-                                        7,
-                                        0
-                                );
-
-                                if (frameSize <= 7 || frameSize > 20480) break;
-
-                                int remain = frameSize - 7;
-
-                                if (open.read(buffer, 7, remain) != remain) break;
-
-                                byte[] packet = new byte[frameSize];
-                                System.arraycopy(buffer, 0, packet, 0, frameSize);
-
-                                // =========================
-                                // ✔ 推流
-                                // =========================
-                                XposedHelpers.callMethod(
-                                        multiMirrorControl,
-                                        "WriteStream",
-                                        false,
-                                        packet,
-                                        pts
-                                );
-
-                                int frameNums =
-                                        (int) XposedHelpers.getObjectField(thisObj, "frameNums");
-
-                                int samplerate =
-                                        (int) XposedHelpers.getObjectField(thisObj, "samplerate");
-
-                                pts += (1000000L * frameNums) / samplerate;
-
-                                long currentTimeMillis =
-                                        (pts / 1000)
-                                                - (System.currentTimeMillis() - playSysTime);
-
-                                // =========================
-                                // ✔ 只修改这一处（2000 → threshold）
-                                // =========================
-                                if (currentTimeMillis > threshold) {
-                                    Thread.sleep(currentTimeMillis - threshold);
-                                }
-                            }
-
-                            return null;
-                        }
-                    }
+                    XposedHelpers.findClass(
+                            "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl",
+                            cl
+                    ),
+                    String.class
             );
 
-            XposedBridge.log("MiPlayFix: sendLocalAudio hook成功");
+            XposedBridge.hookMethod(method, new MethodHook() {
+
+                @Override
+                public Object replaceCall(MethodHookParam param) throws Throwable {
+
+                    Object thisObj = param.getThisObject();
+                    Object multiMirrorControl = param.getArgs()[0];
+                    String fileName = (String) param.getArgs()[1];
+
+                    long threshold = 50;
+
+                    Context context = (Context)
+                            XposedHelpers.getObjectField(thisObj, "mContext");
+
+                    InputStream open = context.getAssets().open(fileName);
+
+                    byte[] buffer = new byte[20480];
+
+                    long playSysTime = System.currentTimeMillis();
+                    long pts = 0;
+
+                    while (true) {
+
+                        boolean exit = (boolean)
+                                XposedHelpers.getObjectField(thisObj, "mUseLocalAudioExit");
+
+                        if (exit) break;
+
+                        if (open.read(buffer, 0, 7) != 7) break;
+
+                        int frameSize = (int) XposedHelpers.callMethod(
+                                thisObj,
+                                "parseADTSHeader",
+                                buffer,
+                                7,
+                                0
+                        );
+
+                        if (frameSize <= 7 || frameSize > 20480) break;
+
+                        int remain = frameSize - 7;
+
+                        if (open.read(buffer, 7, remain) != remain) break;
+
+                        byte[] packet = new byte[frameSize];
+                        System.arraycopy(buffer, 0, packet, 0, frameSize);
+
+                        XposedHelpers.callMethod(
+                                multiMirrorControl,
+                                "WriteStream",
+                                false,
+                                packet,
+                                pts
+                        );
+
+                        int frameNums = (int)
+                                XposedHelpers.getObjectField(thisObj, "frameNums");
+
+                        int samplerate = (int)
+                                XposedHelpers.getObjectField(thisObj, "samplerate");
+
+                        pts += (1000000L * frameNums) / samplerate;
+
+                        long currentTimeMillis =
+                                (pts / 1000)
+                                        - (System.currentTimeMillis() - playSysTime);
+
+                        if (currentTimeMillis > threshold) {
+                            Thread.sleep(currentTimeMillis - threshold);
+                        }
+                    }
+
+                    return null;
+                }
+            });
 
         } catch (Throwable e) {
-            XposedBridge.log("MiPlayFix: sendLocalAudio hook失败 -> " + e);
+            XposedBridge.log("sendLocalAudio hook failed -> " + e);
         }
     }
 }
