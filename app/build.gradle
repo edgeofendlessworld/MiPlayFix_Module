@@ -34,5 +34,5 @@ dependencies {
     
     // 【关键新增】引入 DexKit (需要打包进 APK，所以用 implementation)
     // 它是方案二的核心逻辑实现库
-    implementation 'org.luckypray:dexkit:1.1.8'
+    implementation 'org.luckypray:dexkit:2.2.0'
 }
