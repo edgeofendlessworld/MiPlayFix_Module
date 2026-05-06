@@ -1,76 +1,74 @@
-package com.xposed.miplayfix
+package com.xposed.miplayfix;
 
-import android.content.ComponentName
-import android.content.Context
-import de.robv.android.xposed.XposedHelpers
-import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface
-import java.util.concurrent.CopyOnWriteArrayList
+import android.util.Log;
+import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedModuleInterface;
 
 /**
  * MiPlayFix - 小米投屏服务音频延迟修复模块
  * 基于 libxposed API 101.0.0
  */
-class MainModule : XposedModule() {
+public class MainHook extends XposedModule {
 
-    companion object {
-        private const val TARGET_PACKAGE = "com.milink.service"
-        private const val TARGET_CLASS = "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl"
-        private const val TARGET_METHOD = "setAudioPlayDelayTime"
-        private const val NEW_DELAY = 50000 // 微秒，即50ms
-        private const val TAG = "MiPlayFix"
+    private static final String TARGET_PACKAGE = "com.milink.service";
+    private static final String TARGET_CLASS = "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
+    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
+    private static final int NEW_DELAY = 50000; // 微秒，即50ms
+    private static final String TAG = "MiPlayFix";
+
+    @Override
+    public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
+        log("模块已加载");
     }
 
-    override fun onModuleLoaded(param: XposedModuleInterface.ModuleLoadedParam) {
-        log("模块已加载")
-    }
-
-    override fun onPackageEvent(param: XposedModuleInterface.PackageEvent) {
+    @Override
+    public void onPackageEvent(XposedModuleInterface.PackageEvent param) {
         // 仅处理目标包
-        if (param.packageName != TARGET_PACKAGE) return
+        if (!param.packageName.equals(TARGET_PACKAGE)) {
+            return;
+        }
 
-        log("成功注入目标应用 -> $TARGET_PACKAGE")
+        log("成功注入目标应用 -> " + TARGET_PACKAGE);
 
         try {
-            hookAudioDelayMethod(param)
-        } catch (e: Throwable) {
-            log("注入失败 -> ${e.message}")
-            e.printStackTrace()
+            hookAudioDelayMethod(param);
+        } catch (Throwable e) {
+            log("注入失败 -> " + e.getMessage());
         }
     }
 
     /**
      * Hook 音频延迟方法
      */
-    private fun hookAudioDelayMethod(param: XposedModuleInterface.PackageEvent) {
+    private void hookAudioDelayMethod(XposedModuleInterface.PackageEvent param) {
         try {
-            val classLoader = param.classLoader
-            val targetClass = Class.forName(TARGET_CLASS, false, classLoader)
-            
-            val targetMethod = targetClass.getDeclaredMethod(
+            ClassLoader classLoader = param.classLoader;
+            Class<?> targetClass = Class.forName(TARGET_CLASS, false, classLoader);
+
+            java.lang.reflect.Method targetMethod = targetClass.getDeclaredMethod(
                 TARGET_METHOD,
-                Long::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
-            )
+                long.class,
+                int.class
+            );
 
-            hook(targetMethod).before { hookParam ->
+            hook(targetMethod).before(hookParam -> {
                 try {
-                    val originalDelay = hookParam.args[1] as Int
-                    hookParam.args[1] = NEW_DELAY
-                    log("音频延迟已修改 [ $originalDelay -> $NEW_DELAY ]")
-                } catch (e: Exception) {
-                    log("参数修改失败: ${e.message}")
+                    int originalDelay = (int) hookParam.args[1];
+                    hookParam.args[1] = NEW_DELAY;
+                    log("音频延迟已修改 [ " + originalDelay + " -> " + NEW_DELAY + " ]");
+                } catch (Exception e) {
+                    log("参数修改失败: " + e.getMessage());
                 }
-            }
+            });
 
-        } catch (e: ClassNotFoundException) {
-            log("未找到目标类: $TARGET_CLASS")
-        } catch (e: NoSuchMethodException) {
-            log("未找到目标方法: $TARGET_METHOD")
+        } catch (ClassNotFoundException e) {
+            log("未找到目标类: " + TARGET_CLASS);
+        } catch (NoSuchMethodException e) {
+            log("未找到目标方法: " + TARGET_METHOD);
         }
     }
 
-    private fun log(message: String) {
-        log(android.util.Log.INFO, TAG, message)
+    private void log(String message) {
+        log(Log.INFO, TAG, message);
     }
 }
