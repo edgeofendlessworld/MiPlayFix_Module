@@ -8,7 +8,7 @@ import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 public class MainHook implements IXposedHookLoadPackage {
 
@@ -33,14 +33,14 @@ public class MainHook implements IXposedHookLoadPackage {
             "sendLocalAudio";
 
     @Override
-    public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
+    public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
 
         if (!lpparam.packageName.equals(TARGET_PACKAGE)) return;
 
         XposedBridge.log("MiPlayFix: 已注入 -> " + TARGET_PACKAGE);
 
         // =====================================================
-        // ① delay hook（原逻辑保留）
+        // ① delay hook
         // =====================================================
         try {
             XposedHelpers.findAndHookMethod(
@@ -50,8 +50,9 @@ public class MainHook implements IXposedHookLoadPackage {
                     long.class,
                     int.class,
                     new XC_MethodHook() {
+
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
+                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 
                             int originalDelay = (int) param.args[1];
 
@@ -60,18 +61,18 @@ public class MainHook implements IXposedHookLoadPackage {
                             param.args[1] = newDelay;
 
                             XposedBridge.log(
-                                    "MiPlayFix: delay " +
-                                            originalDelay + " -> " + newDelay
+                                    "MiPlayFix: delay " + originalDelay + " -> " + newDelay
                             );
                         }
                     }
             );
+
         } catch (Throwable e) {
             XposedBridge.log("delay hook失败 -> " + e);
         }
 
         // =====================================================
-        // ② audio hook（已合并 threshold=50）
+        // ② audio hook（threshold = 50）
         // =====================================================
         try {
             XposedHelpers.findAndHookMethod(
@@ -90,7 +91,7 @@ public class MainHook implements IXposedHookLoadPackage {
                             String fileName = (String) param.args[1];
 
                             // =========================
-                            // ✔ 原 2000 -> 改为可控参数
+                            // 替换 2000 -> 50
                             // =========================
                             long threshold = 50;
 
@@ -133,9 +134,7 @@ public class MainHook implements IXposedHookLoadPackage {
                                 byte[] packet = new byte[frameSize];
                                 System.arraycopy(buffer, 0, packet, 0, frameSize);
 
-                                // =========================
-                                // ✔ 推流
-                                // =========================
+                                // 推流
                                 XposedHelpers.callMethod(
                                         multiMirrorControl,
                                         "WriteStream",
@@ -156,9 +155,6 @@ public class MainHook implements IXposedHookLoadPackage {
                                         (pts / 1000)
                                                 - (System.currentTimeMillis() - playSysTime);
 
-                                // =========================
-                                // ✔ 替换 2000 -> threshold
-                                // =========================
                                 if (currentTimeMillis > threshold) {
                                     Thread.sleep(currentTimeMillis - threshold);
                                 }
