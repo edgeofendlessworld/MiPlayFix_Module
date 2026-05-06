@@ -13,7 +13,7 @@ public class MainHook extends XposedModule {
     private static final String TARGET_PACKAGE = "com.milink.service";
     private static final String TARGET_CLASS = "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
     private static final String TARGET_METHOD = "setAudioPlayDelayTime";
-    private static final int NEW_DELAY = 50000; // 微秒，即50ms
+    private static final int NEW_DELAY = 50000; // 延迟时间，单位为微秒，默认为50ms
     private static final String TAG = "MiPlayFix";
 
     @Override
@@ -23,7 +23,6 @@ public class MainHook extends XposedModule {
 
     @Override
     public void onPackageLoaded(XposedModuleInterface.PackageLoadedParam param) {
-        // 仅处理目标包
         if (!param.getPackageName().equals(TARGET_PACKAGE)) {
             return;
         }
@@ -37,9 +36,6 @@ public class MainHook extends XposedModule {
         }
     }
 
-    /**
-     * Hook 音频延迟方法
-     */
     private void hookAudioDelayMethod(XposedModuleInterface.PackageLoadedParam param) {
         try {
             ClassLoader classLoader = param.getDefaultClassLoader();
@@ -56,16 +52,13 @@ public class MainHook extends XposedModule {
                     Object[] args = chain.getArgs().toArray();
                     int originalDelay = (int) args[1];
                     
-                    // 修改参数
                     args[1] = NEW_DELAY;
                     
                     log("音频延迟已修改 [ " + originalDelay + " -> " + NEW_DELAY + " ]");
                     
-                    // 使用修改后的参数继续执行
                     return chain.proceed(args);
                 } catch (Exception e) {
                     log("参数修改失败: " + e.getMessage());
-                    // 如果出错，继续原始执行
                     return chain.proceed();
                 }
             });
