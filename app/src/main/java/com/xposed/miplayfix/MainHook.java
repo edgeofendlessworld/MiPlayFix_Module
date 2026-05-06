@@ -56,7 +56,7 @@ public class MainHook implements IXposedHookLoadPackage {
                                 byte[] buffer = new byte[20480];
                                 long playSysTime = System.currentTimeMillis();
                                 long pts = 0;
-                                int threshold = 2000; // 缓存阈值（毫秒）
+                                int threshold = 50; // 缓存阈值（毫秒）
 
                                 while (true) {
                                     // 检查退出标志
