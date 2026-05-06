@@ -1,47 +1,43 @@
 package com.xposed.miplayfix;
 
-import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
+import io.github.libxposed.api.XposedInterface;
+import io.github.libxposed.api.XposedModule;
 
-public class MainHook implements IXposedHookLoadPackage {
+public class MainHook extends XposedModule {
 
-    private static final String TARGET_PACKAGE = "com.milink.service";
-    private static final String TARGET_CLASS = "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl";
-    private static final String TARGET_METHOD = "setAudioPlayDelayTime";
+    public MainHook(XposedInterface base) {
+        super(base);
+    }
 
     @Override
-    public void handleLoadPackage(LoadPackageParam lpparam) throws Throwable {
-        if (!lpparam.packageName.equals(TARGET_PACKAGE)) return;
+    public void onPackageEvent(XposedInterface.PackageEvent event) throws Throwable {
+        if (!event.packageName.equals("com.milink.service")) return;
 
-        XposedBridge.log("MiPlayFix: 成功注入目标应用 -> " + TARGET_PACKAGE);
+        base.log("MiPlayFix: 成功注入目标应用 -> com.milink.service");
 
         try {
-            Class<?> targetClass = XposedHelpers.findClass(
-                TARGET_CLASS,
-                lpparam.classLoader
+            var classLoader = event.classLoader;
+            var targetClass = Class.forName(
+                "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl",
+                false,
+                classLoader
             );
-            
-            XposedHelpers.findAndHookMethod(
-                targetClass,
-                TARGET_METHOD,
-                long.class,
-                int.class,
-                new XC_MethodHook() {
+
+            base.hookMethod(
+                targetClass.getDeclaredMethod("setAudioPlayDelayTime", long.class, int.class),
+                new XposedInterface.MethodHook() {
                     @Override
-                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    public void beforeCall(XposedInterface.MethodHookParam param) throws Throwable {
                         int originalDelay = (int) param.args[1];
                         int newDelay = 50000; // 延迟时间，单位为微秒，默认为50ms
                         param.args[1] = newDelay;
-                        
-                        XposedBridge.log("MiPlayFix: 音频延迟已修改 [ " + originalDelay + " -> " + newDelay + " ]");
+
+                        base.log("MiPlayFix: 音频延迟已修改 [ " + originalDelay + " -> " + newDelay + " ]");
                     }
                 }
             );
         } catch (Throwable e) {
-            XposedBridge.log("MiPlayFix: 注入失败 -> " + e.getMessage());
+            base.log("MiPlayFix: 注入失败 -> " + e.getMessage());
         }
     }
 }
