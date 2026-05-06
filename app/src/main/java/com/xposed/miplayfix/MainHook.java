@@ -9,7 +9,7 @@ public class MainHook extends XposedModule {
         super(base);
     }
 
-    @Override
+
     public void onPackageEvent(XposedInterface.PackageEvent event) throws Throwable {
         if (!event.packageName.equals("com.milink.service")) return;
 
