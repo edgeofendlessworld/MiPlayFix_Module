@@ -1,9 +1,6 @@
 package com.xposed.miplayfix;
 
 import android.util.Log;
-
-import androidx.annotation.NonNull;
-
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedModuleInterface;
 
@@ -20,12 +17,12 @@ public class MainHook extends XposedModule {
     private static final String TAG = "MiPlayFix";
 
     @Override
-    public void onModuleLoaded(@NonNull XposedModuleInterface.ModuleLoadedParam param) {
+    public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
         log("模块已加载");
     }
 
     @Override
-    public void onPackageLoaded(@NonNull XposedModuleInterface.PackageLoadedParam param) {
+    public void onPackageLoaded(XposedModuleInterface.PackageLoadedParam param) {
         // 仅处理目标包
         if (!param.getPackageName().equals(TARGET_PACKAGE)) {
             return;
@@ -43,7 +40,7 @@ public class MainHook extends XposedModule {
     /**
      * Hook 音频延迟方法
      */
-    private void hookAudioDelayMethod(@NonNull XposedModuleInterface.PackageLoadedParam param) {
+    private void hookAudioDelayMethod(XposedModuleInterface.PackageLoadedParam param) {
         try {
             ClassLoader classLoader = param.getDefaultClassLoader();
             Class<?> targetClass = Class.forName(TARGET_CLASS, false, classLoader);
@@ -54,17 +51,23 @@ public class MainHook extends XposedModule {
                 int.class
             );
 
-            // 使用 intercept() 方法，而不是 before()
             hook(targetMethod).intercept(chain -> {
                 try {
-                    int originalDelay = (int) chain.getArgs().get(1);
-                    chain.getArgs().set(1, NEW_DELAY);
+                    Object[] args = chain.getArgs().toArray();
+                    int originalDelay = (int) args[1];
+                    
+                    // 修改参数
+                    args[1] = NEW_DELAY;
+                    
                     log("音频延迟已修改 [ " + originalDelay + " -> " + NEW_DELAY + " ]");
+                    
+                    // 使用修改后的参数继续执行
+                    return chain.proceed(args);
                 } catch (Exception e) {
                     log("参数修改失败: " + e.getMessage());
+                    // 如果出错，继续原始执行
+                    return chain.proceed();
                 }
-                // 继续执行原始方法
-                return chain.proceed();
             });
 
         } catch (ClassNotFoundException e) {
