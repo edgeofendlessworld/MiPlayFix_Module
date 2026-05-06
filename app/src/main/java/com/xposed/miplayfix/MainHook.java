@@ -1,111 +1,62 @@
-package com.xposed.miplayfix;
+package com.example.miplaymod;
 
-import android.content.Context;
-import android.content.res.AssetManager;
-
-import java.io.InputStream;
-import java.io.IOException;
-
+import android.util.Log;
 import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import org.luckypray.dexkit.DexKitBridge;
+import org.luckypray.dexkit.query.FindMethod;
+import org.luckypray.dexkit.result.MethodData;
 
 public class MainHook implements IXposedHookLoadPackage {
+    private static final String TAG = "MiPlayMod";
+    // 目标 App 包名
+    private static final String TARGET_PKG = "com.xiaomi.miplay"; 
 
     @Override
-    public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
+        // 只 Hook 目标进程
+        if (!lpparam.packageName.equals(TARGET_PKG)) return;
 
-        // 仅作用于小米妙播进程
-        if (!lpparam.packageName.equals("com.xiaomi.miplay")) {
-            return;
-        }
+        // 异步执行，避免加载 Dex 时卡死主线程
+        new Thread(() -> {
+            try {
+                // 等待一会儿确保 APK 已解压就绪
+                Thread.sleep(2000); 
+                
+                try (DexKitBridge bridge = DexKitBridge.create(lpparam.appInfo.sourceDir)) {
+                    if (bridge == null) return;
 
-        // 找到目标类
-        Class<?> clazz = XposedHelpers.findClass(
-                "com.xiaomi.miplay.mylibrary.mirror.CaptureService",
-                lpparam.classLoader
-        );
+                    // 1. 定位目标类和方法
+                    // 注意：如果 smali 中的方法名不是 run，请修改此处
+                    MethodData methodData = bridge.findMethod(
+                        FindMethod.create()
+                            .declaredClass("com.xiaomi.miplay.mylibrary.mirror.CaptureService")
+                            .name("run") 
+                    ).firstOrNull();
 
-        // Hook 发送音频的方法
-        XposedHelpers.findAndHookMethod(
-                clazz,
-                "sendLocalAudio",
-                "com.xiaomi.miplay.mylibrary.mirror.MultiMirrorControl",
-                String.class,
-                new XC_MethodHook() {
+                    if (methodData != null) {
+                        Log.d(TAG, "定位到目标方法: " + methodData.getDescriptor());
 
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                        // ❗ 阻止原方法执行，改为自定义逻辑
-                        param.setResult(null);
-
-                        final Object thisObj = param.thisObject;
-                        final Object multiMirrorControl = param.args[0];
-                        final String fileName = (String) param.args[1];
-
-                        // 获取 Context 和 AssetManager
-                        Context context = (Context) XposedHelpers.getObjectField(thisObj, "context");
-                        AssetManager assetManager = context.getAssets();
-
-                        // 开启新线程运行，防止阻塞主线程导致 ANR
-                        new Thread(() -> {
-                            InputStream is = null;
-                            try {
-                                is = assetManager.open(fileName);
-                                byte[] buffer = new byte[20480];
-                                long playSysTime = System.currentTimeMillis();
-                                long pts = 0;
-                                int threshold = 50; // 缓存阈值（毫秒）
-
-                                while (true) {
-                                    // 检查退出标志
-                                    if ((boolean) XposedHelpers.getObjectField(thisObj, "mUseLocalAudioExit")) {
-                                        break;
-                                    }
-
-                                    // 读取 ADTS 头部 (7字节)
-                                    if (is.read(buffer, 0, 7) != 7) break;
-
-                                    // 解析帧大小
-                                    int frameSize = (int) XposedHelpers.callMethod(
-                                            thisObj, "parseADTSHeader", buffer, 7, 0);
-
-                                    if (frameSize <= 7 || frameSize > 20480) break;
-
-                                    // 读取剩余帧数据
-                                    int remain = frameSize - 7;
-                                    if (is.read(buffer, 7, remain) != remain) break;
-
-                                    // 复制当前帧
-                                    byte[] packet = new byte[frameSize];
-                                    System.arraycopy(buffer, 0, packet, 0, frameSize);
-
-                                    // 推送到流
-                                    XposedHelpers.callMethod(multiMirrorControl, "WriteStream", false, packet, pts);
-
-                                    // 计算下一帧的 PTS
-                                    int frameNums = (int) XposedHelpers.getObjectField(thisObj, "frameNums");
-                                    int samplerate = (int) XposedHelpers.getObjectField(thisObj, "samplerate");
-                                    pts += (1000000L * frameNums) / samplerate;
-
-                                    // 控速逻辑
-                                    long sleepTime = (pts / 1000) - (System.currentTimeMillis() - playSysTime);
-                                    if (sleepTime > threshold) {
-                                        Thread.sleep(sleepTime - threshold);
-                                    }
-                                }
-                            } catch (Exception e) {
-                                // 打印错误日志到 LSPosed/Xposed 管理器
-                                de.robv.android.xposed.XposedBridge.log("MiPlayFix Error: " + e.getMessage());
-                            } finally {
-                                if (is != null) {
-                                    try { is.close(); } catch (IOException ignored) {}
-                                }
+                        // 2. 修改字节码指令
+                        methodData.getInstructions().forEach(ins -> {
+                            // 查找 const-wide/16 vX, 2000 (0x7d0)
+                            if (ins.getOpcode().name().contains("CONST_WIDE_16") && ins.getLiteral() == 2000L) {
+                                // 将其修改为 0
+                                ins.setLiteral(50L);
+                                Log.d(TAG, "成功修改 0x7d0 为 0");
                             }
-                        }).start();
+                        });
+
+                        // 3. 保存修改
+                        methodData.save();
+                        Log.d(TAG, "修改已保存并生效");
+                    } else {
+                        Log.e(TAG, "未能找到目标方法，请确认方法名是否为 run");
                     }
                 }
-        );
+            } catch (Exception e) {
+                Log.e(TAG, "Hook 过程中发生错误: ", e);
+            }
+        }).start();
     }
 }
